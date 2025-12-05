@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # ← これが無いと push 不可能
+  contents: write
 
 jobs:
   build:
@@ -17,43 +17,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          clean: true
-      - name: Reset git index completely
-        run: |
-          git rm -r --cached thumbs/ || true
-          git reset --hard
-          
-      - name: Clean workspace completely
-        run: |
-          git clean -fdx
 
-      - name: List thumbs folder (debug)
+      # 🔥 まず過去のゴミを Git の index から削除
+      - name: Force clear thumbs from Git
         run: |
-          echo "=== thumbs ==="
-          ls -alR thumbs || echo "thumbs not found"
-          echo "=== upload ==="
-          ls -alR upload || echo "upload not found"
+          git rm -r --cached thumbs || true
+          rm -rf thumbs
+          mkdir thumbs
 
       - name: Install tools
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg imagemagick
 
-      - name: Prepare directories
-        run: |
-          mkdir -p thumbs
-          mkdir -p data
-
-      - name: Clear old thumbnails
-        run: rm -f thumbs/* || true
-
-      - name: Ensure default audio thumb exists
-        run: |
-          if [ ! -f default_music.jpg ]; then
-            echo "No default_music.jpg found. Generating placeholder."
-            convert -size 300x300 "xc:gray" -gravity center \
-              -pointsize 48 -annotate 0 "Music" default_music.jpg
-          fi
+      - name: Prepare data dir
+        run: mkdir -p data
 
       - name: Generate thumbnails & JSON
         run: |
@@ -68,9 +46,6 @@ jobs:
             ext="${filename##*.}"
             lower=$(echo "$ext" | tr 'A-Z' 'a-z')
 
-            echo "Processing: $filename"
-
-            # 🔥 サムネ生成
             case "$lower" in
               jpg|jpeg|png|gif|webp)
                 convert "$f" -resize 300x300 "thumbs/${base}.jpg"
@@ -79,9 +54,9 @@ jobs:
                 ffmpeg -y -i "$f" -vf "thumbnail,scale=300:-1" -frames:v 1 "thumbs/${base}.jpg"
                 ;;
               mp3|wav|ogg|m4a)
-                # 音声 → 波形サムネ生成
-                ffmpeg -y -i "$f" -filter_complex "showwavespic=s=300x300:colors=white" -frames:v 1 "thumbs/${base}.jpg" \
-                  || cp default_music.jpg "thumbs/${base}.jpg"
+                ffmpeg -y -i "$f" -filter_complex "showwavespic=s=300x300" \
+                  -frames:v 1 "thumbs/${base}.jpg" \
+                  || convert -size 300x300 xc:gray "thumbs/${base}.jpg"
                 ;;
               *)
                 echo "Skip unsupported: $filename"
@@ -89,7 +64,6 @@ jobs:
                 ;;
             esac
 
-            # 🔥 JSON 追加
             if [ "$first" = true ]; then
               first=false
             else
@@ -103,11 +77,11 @@ jobs:
             echo "    \"url\": \"upload/${filename}\"," >> data/list.json
             echo "    \"type\": \"$lower\"" >> data/list.json
             echo "  }" >> data/list.json
-
           done
 
           echo "]" >> data/list.json
 
+      # 🔥 削除＋生成したファイルを全部 Git に反映
       - name: Commit changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -115,11 +89,11 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          git add data/list.json thumbs/ || true
+          git add -A
 
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "Regenerated JSON & thumbnails"
+            git commit -m "Regenerated JSON & thumbnails (cleaned)"
             git push
           fi
