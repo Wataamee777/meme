@@ -99,8 +99,8 @@ jobs:
             echo "  {" >> data/list.json
             echo "    \"title\": \"$base\"," >> data/list.json
             echo "    \"file\": \"$filename\"," >> data/list.json
-            echo "    \"thumb\": \"/thumbs/${base}.jpg\"," >> data/list.json
-            echo "    \"url\": \"/upload/${filename}\"," >> data/list.json
+            echo "    \"thumb\": \"thumbs/${base}.jpg\"," >> data/list.json
+            echo "    \"url\": \"upload/${filename}\"," >> data/list.json
             echo "    \"type\": \"$lower\"" >> data/list.json
             echo "  }" >> data/list.json
 
