@@ -1,104 +1,109 @@
-name: Build media list
+name: Build Media List
 
-# upload フォルダに変更があれば動く
 on:
   push:
     paths:
       - "upload/**"
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write   # ← これが無いと push 不可能
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install dependencies
+      - name: Install tools
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg imagemagick
 
-      - name: Prepare folders
+      - name: Prepare directories
         run: |
-          mkdir -p thumbs data
-          # ensure default music thumbnail exists (you should add default_music.jpg to repo root)
+          mkdir -p thumbs
+          mkdir -p data
+
+      - name: Clear old thumbnails
+        run: rm -f thumbs/* || true
+
+      - name: Ensure default audio thumb exists
+        run: |
           if [ ! -f default_music.jpg ]; then
-            echo "Please add default_music.jpg to repo root for audio thumbnails."
+            echo "No default_music.jpg found. Generating placeholder."
+            convert -size 300x300 "xc:gray" -gravity center \
+              -pointsize 48 -annotate 0 "Music" default_music.jpg
           fi
 
-      - name: Generate thumbnails and collect metadata
+      - name: Generate thumbnails & JSON
         run: |
-          # temp file to store JSON entries
-          TMP=data/_entries.tmp
-          : > $TMP
+          echo "[" > data/list.json
+          first=true
 
-          for filepath in upload/*; do
-            [ -e "$filepath" ] || continue
-            filename=$(basename "$filepath")
+          for f in upload/*; do
+            [ -f "$f" ] || continue
+
+            filename=$(basename "$f")
             base="${filename%.*}"
             ext="${filename##*.}"
-            lcext=$(echo "$ext" | tr '[:upper:]' '[:lower:]')
+            lower=$(echo "$ext" | tr 'A-Z' 'a-z')
 
-            thumb="thumbs/${base}.jpg"
-            url="./upload/${filename}"
-            thumb_rel="./thumbs/${base}.jpg"
+            echo "Processing: $filename"
 
-            case "$lcext" in
+            # 🔥 サムネ生成
+            case "$lower" in
               jpg|jpeg|png|gif|webp)
-                # make square-ish thumb, keep aspect
-                convert "$filepath" -auto-orient -resize 600x600\> -quality 85 "$thumb"
+                convert "$f" -resize 300x300 "thumbs/${base}.jpg"
                 ;;
               mp4|mov|webm|mkv)
-                # extract a thumbnail frame (seek a bit into video to avoid black frames)
-                ffmpeg -hide_banner -loglevel error -ss 2 -i "$filepath" -vf "thumbnail,scale=600:-1" -frames:v 1 "$thumb" || \
-                  ffmpeg -hide_banner -loglevel error -i "$filepath" -vf "thumbnail,scale=600:-1" -frames:v 1 "$thumb" || \
-                  cp default_video.jpg "$thumb" 2>/dev/null || true
+                ffmpeg -y -i "$f" -vf "thumbnail,scale=300:-1" -frames:v 1 "thumbs/${base}.jpg"
                 ;;
-              mp3|wav|ogg|flac|m4a)
-                # try to extract embedded cover image; if fail use default_music.jpg
-                ffmpeg -hide_banner -loglevel error -i "$filepath" -an -vcodec copy "$thumb" 2>/dev/null || \
-                  ffmpeg -hide_banner -loglevel error -i "$filepath" -y -frames:v 1 "$thumb" 2>/dev/null || \
-                  cp default_music.jpg "$thumb" 2>/dev/null || true
+              mp3|wav|ogg|m4a)
+                # 音声 → 波形サムネ生成
+                ffmpeg -y -i "$f" -filter_complex "showwavespic=s=300x300:colors=white" -frames:v 1 "thumbs/${base}.jpg" \
+                  || cp default_music.jpg "thumbs/${base}.jpg"
                 ;;
               *)
-                echo "Skipping unknown file type: $filepath"
+                echo "Skip unsupported: $filename"
                 continue
                 ;;
             esac
 
-            # sanitize title from filename (replace underscores/hyphens with spaces)
-            title=$(echo "$base" | sed -E 's/[_-]+/ /g')
+            # 🔥 JSON 追加
+            if [ "$first" = true ]; then
+              first=false
+            else
+              echo "," >> data/list.json
+            fi
 
-            # add entry (escape double quotes)
-            title_esc=$(echo "$title" | sed 's/"/\\"/g')
-            echo "  {\"title\": \"${title_esc}\", \"file\": \"${filename}\", \"thumb\": \"${thumb_rel}\", \"url\": \"${url}\", \"type\": \"${lcext}\" }," >> $TMP
+            echo "  {" >> data/list.json
+            echo "    \"title\": \"$base\"," >> data/list.json
+            echo "    \"file\": \"$filename\"," >> data/list.json
+            echo "    \"thumb\": \"/thumbs/${base}.jpg\"," >> data/list.json
+            echo "    \"url\": \"/upload/${filename}\"," >> data/list.json
+            echo "    \"type\": \"$lower\"" >> data/list.json
+            echo "  }" >> data/list.json
+
           done
 
-          # write final JSON (remove trailing comma)
-          echo "[" > data/list.json
-          if [ -s $TMP ]; then
-            sed '$ s/,$//' $TMP >> data/list.json
-          fi
           echo "]" >> data/list.json
 
-      - name: Add index.html fallback (if not present)
-        run: |
-          if [ ! -f index.html ]; then
-            echo "<!doctype html><meta charset='utf-8'><title>Meme Gallery</title><body><h1>Put index.html</h1></body></html>" > index.html
-          fi
-
-      - name: Commit thumbnails and list.json
+      - name: Commit changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add data/list.json thumbs || true
-          git commit -m "chore: update thumbs & data/list.json" || echo "No changes to commit"
-          git push || echo "Push failed (maybe no changes)"
+
+          git add data/list.json thumbs/ || true
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Regenerated JSON & thumbnails"
+            git push
+          fi
