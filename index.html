@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>meme配布</title>
+
+  <!-- OGP / meta -->
+  <meta property="og:title" content="meme配布">
+  <meta property="og:description" content="ミーム">
+  <meta property="og:type" content="website">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <h1>meme配布所</h1>
+    <p class="muted">日本ミームなど</p>
+  </header>
+
+  <main>
+    <section id="controls" class="controls">
+      <input id="search" placeholder="検索 (タイトル)" />
+      <select id="filter">
+        <option value="all">すべて</option>
+        <option value="image">画像</option>
+        <option value="video">動画</option>
+        <option value="audio">音声</option>
+      </select>
+      <button id="sortBtn">新着順</button>
+    </section>
+
+    <section id="grid" class="grid" aria-live="polite"></section>
+  </main>
+
+  <!-- modal -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-inner" id="modalInner">
+      <button id="closeModal" class="close-btn" aria-label="閉じる">×</button>
+      <div id="modalBody"></div>
+      <div class="modal-meta" id="modalMeta"></div>
+    </div>
+  </div>
+
+  <script src="script.js" type="module"></script>
+</body>
+</html>
