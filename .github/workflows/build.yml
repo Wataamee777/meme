@@ -47,8 +47,18 @@ jobs:
             lower=$(echo "$ext" | tr 'A-Z' 'a-z')
 
             case "$lower" in
-              jpg|jpeg|png|gif|webp)
+              jpg|jpeg|png|webp)
                 convert "$f" -resize 300x300 "thumbs/${base}.jpg"
+                ;;
+              gif)
+              # GIFサムネ生成（100フレ→最終→1フレ fallback）
+                ffmpeg -y -i "$f" -vf "select=gte(n\,100),scale=300:-1" -vframes 1 "thumbs/${base}.jpg" 2>/dev/null
+                if [ ! -s "thumbs/${base}.jpg" ]; then
+                 ffmpeg -y -i "$f" -vf "select=gt(n\,3),scale=300:-1" -vframes 1 "thumbs/${base}.jpg" 2>/dev/null
+                fi
+                if [ ! -s "thumbs/${base}.jpg" ]; then
+                 ffmpeg -y -i "$f" -vf "scale=300:-1" -vframes 1 "thumbs/${base}.jpg"
+                fi
                 ;;
               mp4|mov|webm|mkv)
                 ffmpeg -y -i "$f" -vf "thumbnail,scale=300:-1" -frames:v 1 "thumbs/${base}.jpg"
