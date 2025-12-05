@@ -160,6 +160,14 @@
   }
 ,
   {
+    "title": "やっちゃいなよ！そんな偽物なんか！",
+    "file": "やっちゃいなよ！そんな偽物なんか！.mp4",
+    "thumb": "thumbs/やっちゃいなよ！そんな偽物なんか！.jpg",
+    "url": "upload/やっちゃいなよ！そんな偽物なんか！.mp4",
+    "type": "mp4"
+  }
+,
+  {
     "title": "よもぎ on X",
     "file": "よもぎ on X.jpeg",
     "thumb": "thumbs/よもぎ on X.jpg",
@@ -240,10 +248,26 @@
   }
 ,
   {
+    "title": "データなんかねえよ(コメなし)",
+    "file": "データなんかねえよ(コメなし).mp4",
+    "thumb": "thumbs/データなんかねえよ(コメなし).jpg",
+    "url": "upload/データなんかねえよ(コメなし).mp4",
+    "type": "mp4"
+  }
+,
+  {
     "title": "時には殴った方が話が早い",
     "file": "時には殴った方が話が早い.jpg",
     "thumb": "thumbs/時には殴った方が話が早い.jpg",
     "url": "upload/時には殴った方が話が早い.jpg",
     "type": "jpg"
+  }
+,
+  {
+    "title": "閃光のハサウェイ GB素材",
+    "file": "閃光のハサウェイ GB素材.mp4",
+    "thumb": "thumbs/閃光のハサウェイ GB素材.jpg",
+    "url": "upload/閃光のハサウェイ GB素材.mp4",
+    "type": "mp4"
   }
 ]
