@@ -18,6 +18,10 @@ jobs:
         with:
           fetch-depth: 0
           clean: true
+      - name: Reset git index completely
+        run: |
+          git rm -r --cached . || true
+          git reset --hard
           
       - name: Clean workspace completely
         run: |
