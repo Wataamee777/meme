@@ -20,7 +20,7 @@ jobs:
           clean: true
       - name: Reset git index completely
         run: |
-          git rm -r --cached . || true
+          git rm -r --cached thumbs/ || true
           git reset --hard
           
       - name: Clean workspace completely
