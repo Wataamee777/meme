@@ -42,9 +42,6 @@ jobs:
 
       - name: Clear old thumbnails
         run: rm -f thumbs/* || true
-        
-      - name: Remove thumbs from git index
-        run: git rm -r --cached thumbs || true
 
       - name: Ensure default audio thumb exists
         run: |
